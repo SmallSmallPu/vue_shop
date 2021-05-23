@@ -2,6 +2,8 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Login from '../components/Login'
 import Home from '../components/Home'
+import Welcome from '../components/Welcome'
+import User from '../components/user/User'
 Vue.use(VueRouter)
 
 const routes = [
@@ -16,6 +18,18 @@ const routes = [
   {
     path:'/home',
     component: Home,
+    // 重定向操作，只要进去home页面之后立马重定向到welcome页面
+    redirect:'/welcome',
+    children:[
+      {
+      path:'/welcome',
+      component:Welcome,
+    },
+      {
+        path:'/users',
+        component:User,
+      }
+    ]
   }
 ]
 
