@@ -14,3 +14,6 @@ html,body,#app{
     margin-bottom: 15px;
     font-size: 12px;
 }
+.el-table{
+    margin-bottom: 15px;
+}
