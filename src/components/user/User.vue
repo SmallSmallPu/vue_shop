@@ -65,10 +65,10 @@
               label="操作"
               width="200px"
             >
-              <template>
+              <template slot-scope="scope" >
                 <!--修改按钮-->
                 <el-tooltip :enterable="false" effect="dark" content="修改用户" placement="top">
-                <el-button type="primary" icon="el-icon-edit" size="mini"></el-button>
+                <el-button type="primary" icon="el-icon-edit" size="mini" @click="showUpdate(scope.row.id)"></el-button>
                 </el-tooltip>
                 <!--删除按钮-->
                 <el-tooltip :enterable="false"  effect="dark" content="删除用户" placement="top">
@@ -96,6 +96,7 @@
         title="添加用户"
         :visible.sync="dialogVisible"
         width="50%"
+        @close="addDialogClosed()"
         >
         <!--内容主题区-->
           <el-form label-width="70px" :model="addForm" :rules="addFormRoles" ref="addFormRef">
@@ -114,8 +115,33 @@
           </el-form>
         <!--底部区域-->
         <span slot="footer" class="dialog-footer">
-            <el-button @click="dialogVisible = false">取 消</el-button>
-            <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
+            <el-button @click="dialogVisible = false" >取 消</el-button>
+            <el-button type="primary" @click="addUser()">确 定</el-button>
+          </span>
+      </el-dialog>
+
+      <el-dialog
+        title="修改用户"
+        :visible.sync="updateVisible"
+        width="50%"
+        @close="updateDialogClosed()"
+      >
+        <!--内容主题区-->
+        <el-form label-width="70px" :model="updateForm" :rules="addFormRoles" ref="updateFormRef">
+          <el-form-item label="用户名" prop="username" >
+            <el-input v-model="updateForm.username"  :disabled="true"></el-input>
+          </el-form-item>
+          <el-form-item label="邮箱" prop="email" >
+            <el-input v-model="updateForm.email"></el-input>
+          </el-form-item>
+          <el-form-item label="手机" prop="mobile" >
+            <el-input v-model="updateForm.mobile"></el-input>
+          </el-form-item>
+        </el-form>
+        <!--底部区域-->
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="updateVisible = false" >取 消</el-button>
+            <el-button type="primary" @click="updateUser()">修 改</el-button>
           </span>
       </el-dialog>
     </div>
@@ -125,11 +151,35 @@
   export default {
     name: 'User',
     data(){
+      //验证邮箱的规则
+      const checkEmail = (rule, value, callback) => {
+        const regEmail = /^([a-zA-Z0-9_-])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/
+        if (regEmail.test(value)){
+          return callback();
+        }
+        return  callback(new Error('请输入合法的邮箱'))
+      };
+      //验证手机号的规则
+      const checkMobile = (rule, value, callback) => {
+        const regMobile = /^(0|86|17951)?(13[0-9]|15[0123456789]|17[678]|18[0-9]|14[57])[0-9]{8}$/
+        if (regMobile.test(value)){
+          return callback();
+        }
+       return  callback(new Error('请输入合法的手机号'))
+      };
       return{
+
         // 添加用户表单
         addForm:{
           username:'',
           password:'',
+          email:'',
+          mobile:''
+        },
+        //修改用户表单
+        updateForm:{
+          id:'',
+          username:'',
           email:'',
           mobile:''
         },
@@ -145,14 +195,16 @@
           ],
           email:[
             {required:true,message:'请输入邮箱',trigger:'blur'},
+            {validator:checkEmail,trigger: "blur"}
           ],
           mobile:[
             {required:true,message:'请输入手机号',trigger:'blur'},
-            {min:5,max:11,message:'手机号的长度在5-10个字符之间',trigger:'blur'}
+            {validator:checkMobile,trigger: "blur"}
           ],
         },
         // 控制添加用户对话框的显示与隐藏
         dialogVisible: false,
+        updateVisible: false,
         //获取用户列表的参数对象,
         queryInfo:{
           query:'',
@@ -170,6 +222,52 @@
       this.getUserList()
     },
     methods:{
+
+      updateDialogClosed(){
+        this.$refs.updateFormRef.resetFields();
+
+      },
+      //展示修改菜单栏，并且调用接口根据ID查询信息
+      async showUpdate(id){
+        this.updateVisible = true;
+        const {data:result} = await this.$http.get("users/"+id)
+        this.updateForm = result.data;
+      },
+      //修改用户信息
+       updateUser(){
+        this.$refs.updateFormRef.validate(async valid => {
+          if (!valid) return;
+          const {data:result} = await this.$http.put('users/'+this.updateForm.id,this.updateForm)
+          if (result.meta.status!==200){
+            return this.$message.error("用户修改失败");
+          }
+          this.$message.success("用户修改成功");
+        })
+      },
+
+      // 点击按钮添加新用户
+       addUser(){
+         this.$refs.addFormRef.validate(async valid => {
+           if(!valid) return;
+           //对添加用户表单进行校验，如果填写信息不符合校验模式，则不触发数据接口。
+           const {data: result} = await this.$http.post('users', this.addForm);
+
+           if (result.meta.status == 201) {
+             this.$message.success(result.meta.msg)
+             this.dialogVisible = false;
+             await this.getUserList();
+           } else {
+             this.$message.error(result.meta.msg)
+           }
+         })
+      },
+
+      // 监听对话框的关闭事件
+      addDialogClosed(){
+        this.$refs.addFormRef.resetFields();
+      },
+
+
       async  getUserList(){
         const {data:result} = await this.$http.get('users',{params:this.queryInfo})
         if (result.meta.status!=200) {
@@ -178,15 +276,21 @@
         this.userList = result.data.users;
         this.total = result.data.total;
       },
+
+      // 设置页面数据大小
       handleSizeChange(newSize){
         this.queryInfo.pagesize = newSize;
         this.getUserList();
 
       },
+
+      // 进行分页
       handleCurrentChange(newPage){
         this.queryInfo.pagenum = newPage;
         this.getUserList();
       },
+
+      // 更新用户状态
       async userStateChanged(row){
         console.log(row)
         const {data:result} = await this.$http.put('users/'+row.id+'/state/'+row.mg_state)
@@ -196,6 +300,7 @@
         }
         this.$message.success("用户状态更新成功");
       },
+
       handleClose(done) {
         this.$confirm('确认关闭？')
         done();
