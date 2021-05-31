@@ -72,7 +72,7 @@
                 </el-tooltip>
                 <!--删除按钮-->
                 <el-tooltip :enterable="false"  effect="dark" content="删除用户" placement="top">
-                <el-button type="danger" icon="el-icon-delete" size="mini"></el-button>
+                <el-button type="danger" icon="el-icon-delete" size="mini" @click="deleteUser(scope.row.id)" ></el-button>
                 </el-tooltip>
                 <!--分配角色按钮-->
                 <el-tooltip :enterable="false"  effect="dark" content="分配角色" placement="top">
@@ -223,6 +223,34 @@
     },
     methods:{
 
+       async deleteUser(id){
+          const confirmResult = await this.$confirm('此操作将永久删除ID为'+id+'的用户, 是否继续?', '提示', {
+            // 确认按钮的文本
+            confirmButtonText: '确定',
+            // 取消按钮的文本
+            cancelButtonText: '取消',
+            // 图标
+            type: 'warning'
+          }).catch(err => err);
+
+          console.log(confirmResult);
+          if (confirmResult=='confirm'){
+            console.log("删除");
+            const {data:ret} =  await this.$http.delete("users/" + id);
+            if (ret.meta.status==200){
+              await this.getUserList();
+              return this.$message.success("已删除");
+            }else {
+              return this.$message.info("已取消删除操作");
+            }
+          }else {
+            return this.$message.info("已取消删除操作");
+          }
+
+        },
+
+
+      // 重置修改对话框的数据
       updateDialogClosed(){
         this.$refs.updateFormRef.resetFields();
 
@@ -241,6 +269,8 @@
           if (result.meta.status!==200){
             return this.$message.error("用户修改失败");
           }
+          this.updateVisible = false;
+          this.getUserList();
           this.$message.success("用户修改成功");
         })
       },
